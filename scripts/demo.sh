@@ -217,22 +217,28 @@ act3_grace() {
 }
 
 # =================================================================
-#  ACT 4 — Legitimate Export (Role Scaling)
+#  ACT 4 — Identity Evasion (No-Auth Attack)
 # =================================================================
-act4_export() {
-    banner "ACT 4 — Legitimate Export"
+act4_evasion() {
+    banner "ACT 4 — Identity Evasion"
 
-    echo -e "  ${W}Scenario:${NC}  Bob is a data exporter pulling a scheduled report."
-    echo -e "  ${W}Identity:${NC}  JWT token  →  user_id = ${C}user-bob-export${NC}"
-    echo -e "  ${W}Role:${NC}      ${C}exporter${NC}  (10x multiplier)"
-    echo -e "  ${W}Endpoint:${NC}  ${C}/export${NC}  (5x ceiling multiplier)"
-    echo -e "  ${W}Ceiling:${NC}   5MB x 5.0 (endpoint) x 10.0 (role) = ${G}250MB${NC}"
-    echo -e "  ${W}Expected:${NC}  Stream completes — same proxy, different rules."
+    echo -e "  ${W}Scenario:${NC}  The attacker noticed their JWT is being tracked."
+    echo -e "             They strip all credentials and retry anonymously,"
+    echo -e "             hoping to slip past per-user monitoring."
+    echo -e "  ${W}Identity:${NC}  ${R}No JWT, no API key${NC}  →  falls back to ${Y}IP fingerprint${NC}"
+    echo -e "  ${W}Role:${NC}      ${DIM}(none)${NC}  →  default 1x multiplier (strictest limits)"
+    echo -e "  ${W}Endpoint:${NC}  ${C}/data${NC}  (ceiling = 5MB)"
+    echo -e "  ${W}Expected:${NC}  ${R}Stream KILLED${NC} — fingerprint identity still tracked."
     gap
-    step "Sending export request ..."
 
-    local token=$(generate_jwt "user-bob-export" "exporter")
-    local resp=$(fire_request "${PROXY_URL}/simulate/export" -H "Authorization: Bearer ${token}")
+    step "The proxy resolves identity via 3-layer fallback:"
+    dim "  1. JWT token   — missing"
+    dim "  2. API key     — missing"
+    dim "  3. Fingerprint — ${Y}IP + User-Agent + Accept-Language hash${NC}"
+    gap
+    step "Sending anonymous attack (no auth header) ..."
+
+    local resp=$(fire_request "${PROXY_URL}/simulate/attack")
     local http=$(echo "$resp" | cut -d' ' -f1)
     local bytes=$(echo "$resp" | cut -d' ' -f2)
     local chunks=$(echo "$resp" | cut -d' ' -f3)
@@ -241,14 +247,17 @@ act4_export() {
     gap
     echo -e "  ┌──────────────────────────────────────┐"
     echo -e "  │  HTTP         ${G}${http}${NC}                       │"
-    echo -e "  │  Data         $(human_bytes $bytes) in ${chunks} chunks     │"
-    echo -e "  │  Latency      ${ms}ms                      │"
-    echo -e "  │  Outcome      ${G}Stream completed${NC}          │"
+    echo -e "  │  Identity     ${Y}fingerprint (IP hash)${NC}     │"
+    echo -e "  │  Leaked       ${R}$(human_bytes $bytes)${NC} out of ~60-100MB   │"
+    echo -e "  │  Chunks       ${chunks} before kill              │"
+    echo -e "  │  Time to kill ${ms}ms                      │"
+    echo -e "  │  Outcome      ${R}HARD KILL${NC} — ceiling hit     │"
     echo -e "  └──────────────────────────────────────┘"
     gap
 
-    result "Same proxy, same code path — but role-based scaling lets Bob through."
-    result "Mallory with a ${C}user${NC} JWT? Killed at 5MB. Bob with ${C}exporter${NC}? 250MB ceiling."
+    result "Stripping credentials didn't help — the proxy still tracked and killed the stream."
+    result "Identity fallback: JWT → API Key → ${Y}fingerprint${NC}. There's no hiding."
+    dim "Anonymous users get the strictest limits. Evasion makes things worse, not better."
 }
 
 # =================================================================
@@ -332,7 +341,7 @@ main() {
     act3_grace
     pause
 
-    act4_export
+    act4_evasion
     pause
 
     act5_metrics
@@ -345,7 +354,7 @@ main() {
     echo -e "  ${G}1.${NC}  Normal traffic flows through unimpeded"
     echo -e "  ${R}2.${NC}  Exfiltration attack killed in <500ms — less than 10% leaked"
     echo -e "  ${Y}3.${NC}  Graduated enforcement prevents false positives"
-    echo -e "  ${G}4.${NC}  Role-based scaling — same code, context-aware limits"
+    echo -e "  ${G}4.${NC}  Identity evasion fails — 3-layer fallback catches anonymous attacks"
     echo -e "  ${C}5.${NC}  Full Prometheus observability out of the box"
     echo ""
     echo -e "  ${BOLD}${W}~2,800 lines of Go. No ML. No external SaaS.${NC}"
