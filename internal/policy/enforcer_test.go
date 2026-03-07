@@ -3,7 +3,7 @@ package policy
 import (
 "testing"
 
-"github.com/sentinel-proxy/sentinel-proxy/internal/config"
+"github.com/kayden-vs/sentinel-proxy/internal/config"
 )
 
 func TestGradeFromCount(t *testing.T) {
