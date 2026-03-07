@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/kayden-vs/sentinel-proxy/internal/config"
 	"github.com/redis/go-redis/v9"
-	"github.com/sentinel-proxy/sentinel-proxy/internal/config"
 )
 
 type Client struct {
