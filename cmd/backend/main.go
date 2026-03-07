@@ -1,7 +1,10 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
 	"flag"
+	"fmt"
 	"log/slog"
 	"math/rand"
 	"net"
@@ -11,6 +14,8 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/kayden-vs/sentinel-proxy/internal/config"
 	pb "github.com/kayden-vs/sentinel-proxy/proto/sentinel"
