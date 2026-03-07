@@ -9,7 +9,7 @@ import (
 	"github.com/kayden-vs/sentinel-proxy/internal/config"
 	"github.com/redis/go-redis/v9"
 )
-
+//We use structured "blueprints" to separate who a user is from what they are doing.
 type Client struct {
 	rdb                 *redis.Client
 	windowSize          time.Duration
@@ -31,7 +31,7 @@ type ViolationRecord struct {
 	FirstViolation int64 `json:"first_violation"`
 	LastViolation  int64 `json:"last_violation"`
 }
-
+//The NewClient function checks the system is healthy before it starts.
 func NewClient(cfg config.RedisConfig) (*Client, error) {
 	rdb := redis.NewClient(&redis.Options{
 		Addr:         cfg.Addr,
@@ -63,7 +63,7 @@ func NewClient(cfg config.RedisConfig) (*Client, error) {
 		blendWeightLifetime: blendL,
 	}, nil
 }
-
+// this function tracks every byte of data going out of the network.
 func (c *Client) RecordRequest(ctx context.Context, userID string, byteCount int64) (*BehaviorStats, error) {
 	now := time.Now()
 	nowUnix := now.UnixMilli()
@@ -101,9 +101,8 @@ func (c *Client) RecordRequest(ctx context.Context, userID string, byteCount int
 
 	return c.GetBehaviorStats(ctx, userID)
 }
-
-// this  helps improving  speed by sending data in a single trip rather than 6 7 times
-
+// LUA
+// this  helps improving  speed by sending data in a single trip rather than 6 7 times with help of pipelining
 var behaviorStatsScript = redis.NewScript(`
 local bytesKey = KEYS[1]
 local sumKey = KEYS[2]
