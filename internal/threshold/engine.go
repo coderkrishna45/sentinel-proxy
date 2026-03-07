@@ -113,3 +113,26 @@ func (e *Engine) Evaluate(
 
 	return d
 }
+
+func (e *Engine) ShouldKill(totalBytes int64, decision *Decision) (bool, BreachType, string) {
+	// on HARD BREACH - unconditional immediate termination
+	if totalBytes > decision.AbsoluteCeiling {
+		return true, BreachHard, "absolute ceiling exceeded"
+	}
+
+	// on SOFT BREACH - adaptive threshold exceeded
+	if totalBytes > decision.Allowed {
+		reason := "adaptive threshold exceeded"
+		if decision.AnomalyDetected {
+			reason += " (with rate anomaly)"
+		}
+		return true, BreachSoft, reason
+	}
+
+	return false, BreachNone, ""
+}
+
+func (e *Engine) ShouldThrottle(totalBytes int64, decision *Decision) bool {
+	throttlePoint := int64(float64(decision.Allowed) * 0.7)
+	return totalBytes > throttlePoint && totalBytes <= decision.Allowed
+}
