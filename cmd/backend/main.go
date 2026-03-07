@@ -323,3 +323,90 @@ var (
 	cities      = []string{"New York", "Los Angeles", "Chicago", "Houston", "Phoenix", "San Francisco", "Seattle", "Denver"}
 )
 
+func (s *dataServiceServer) generateRows(count, offset int) []userRow {
+	rows := make([]userRow, count)
+	for i := range rows {
+		id := offset + i + 1
+		rows[i] = userRow{
+			ID:         id,
+			Email:      fmt.Sprintf("%s.%s%d@example.com", lower(firstNames[s.rng.Intn(len(firstNames))]), lower(lastNames[s.rng.Intn(len(lastNames))]), id),
+			Name:       fmt.Sprintf("%s %s", firstNames[s.rng.Intn(len(firstNames))], lastNames[s.rng.Intn(len(lastNames))]),
+			Department: departments[s.rng.Intn(len(departments))],
+			CreatedAt:  time.Now().Add(-time.Duration(s.rng.Intn(365*24)) * time.Hour).Format(time.RFC3339),
+		}
+	}
+	return rows
+}
+
+func (s *dataServiceServer) generateSensitiveRows(count, offset int) []sensitiveRow {
+	rows := make([]sensitiveRow, count)
+	for i := range rows {
+		id := offset + i + 1
+		rows[i] = sensitiveRow{
+			ID:             id,
+			SSN:            fmt.Sprintf("%03d-%02d-%04d", s.rng.Intn(900)+100, s.rng.Intn(100), s.rng.Intn(10000)),
+			Email:          fmt.Sprintf("user%d@example.com", id),
+			CreditCard:     fmt.Sprintf("%04d-%04d-%04d-%04d", s.rng.Intn(10000), s.rng.Intn(10000), s.rng.Intn(10000), s.rng.Intn(10000)),
+			PhoneNumber:    fmt.Sprintf("+1-%03d-%03d-%04d", s.rng.Intn(900)+100, s.rng.Intn(900)+100, s.rng.Intn(10000)),
+			Address:        fmt.Sprintf("%d %s, %s", s.rng.Intn(9999)+1, streets[s.rng.Intn(len(streets))], cities[s.rng.Intn(len(cities))]),
+			AccountBalance: float64(s.rng.Intn(1000000)) / 100.0,
+			Classification: "CONFIDENTIAL",
+		}
+	}
+	return rows
+}
+
+func (s *dataServiceServer) generateExportRows(count, offset int) []exportRow {
+	rows := make([]exportRow, count)
+	for i := range rows {
+		id := offset + i + 1
+		txn := transactionRow{
+			ID:          id,
+			UserID:      s.rng.Intn(10000) + 1,
+			Amount:      float64(s.rng.Intn(100000)) / 100.0,
+			Currency:    currencies[s.rng.Intn(len(currencies))],
+			Type:        txTypes[s.rng.Intn(len(txTypes))],
+			Status:      txStatuses[s.rng.Intn(len(txStatuses))],
+			Description: fmt.Sprintf("Transaction %d for user %d", id, s.rng.Intn(10000)+1),
+			Timestamp:   time.Now().Add(-time.Duration(s.rng.Intn(30*24)) * time.Hour).Format(time.RFC3339),
+		}
+		txnJSON, _ := json.Marshal(txn)
+
+		rows[i] = exportRow{
+			ID:              id,
+			RecordType:      "transaction_export",
+			Timestamp:       time.Now().Format(time.RFC3339),
+			Payload:         string(txnJSON),
+			SourceSystem:    "core_banking",
+			ProcessingNotes: fmt.Sprintf("Batch export record %d, compliance approved", id),
+			AuditTrail:      fmt.Sprintf("export_job_%d|user_%s|approved_by_system", s.rng.Intn(1000), "automated"),
+		}
+	}
+	return rows
+}
+
+func lower(s string) string {
+	if len(s) == 0 {
+		return s
+	}
+	b := []byte(s)
+	if b[0] >= 'A' && b[0] <= 'Z' {
+		b[0] += 32
+	}
+	return string(b)
+}
+
+func parseLogLevel(level string) slog.Level {
+	switch level {
+	case "debug":
+		return slog.LevelDebug
+	case "info":
+		return slog.LevelInfo
+	case "warn":
+		return slog.LevelWarn
+	case "error":
+		return slog.LevelError
+	default:
+		return slog.LevelInfo
+	}
+}
